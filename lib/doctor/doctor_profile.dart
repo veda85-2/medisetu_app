@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
-import '../pages/book_appointment.dart';
+import '../pages/appointment/book_appointment.dart';
 
 class DoctorProfilePage extends StatelessWidget {
   final Doctor doctor;

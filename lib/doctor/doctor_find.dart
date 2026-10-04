@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../pages/services/api_service.dart';
+import '../services/api_service.dart';
 import '../models.dart';
 import 'doctor_profile.dart';
 

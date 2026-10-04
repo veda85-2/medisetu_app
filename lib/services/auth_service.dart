@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 class AuthService {
-  static const String baseUrl = 'http://127.0.0.1:8000/api/auth';
+  static const String baseUrl = 'http:// 192.168.1.6:8000/api/auth';
 
   // =========================
   // LOGIN

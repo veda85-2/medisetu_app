@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../models.dart';
+import 'appointment_details.dart';
+
 
 class AppointmentConfirmedPage extends StatelessWidget {
   final Doctor doctor;
   final DateTime date;
   final TimeOfDay time;
   final String consultationType;
+  final Map<String, dynamic> appointment;
 
   const AppointmentConfirmedPage({
     super.key,
@@ -13,13 +16,13 @@ class AppointmentConfirmedPage extends StatelessWidget {
     required this.date,
     required this.time,
     required this.consultationType,
+    required this.appointment,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5FAFD),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(18),
@@ -27,7 +30,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
             children: [
               const SizedBox(height: 35),
 
-              // SUCCESS ICON
               Container(
                 width: 75,
                 height: 75,
@@ -44,7 +46,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // TITLE
               const Text(
                 'Appointment Confirmed!',
                 style: TextStyle(
@@ -67,12 +68,10 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
               const SizedBox(height: 25),
 
-              // DETAILS
               _detailsCard(context),
 
               const SizedBox(height: 16),
 
-              // NOTIFICATION
               Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
@@ -85,9 +84,7 @@ class AppointmentConfirmedPage extends StatelessWidget {
                       Icons.notifications_none,
                       color: Color(0xFF2589E8),
                     ),
-
                     SizedBox(width: 9),
-
                     Expanded(
                       child: Text(
                         'You will receive a reminder before your appointment.',
@@ -103,15 +100,18 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // VIEW APPOINTMENT
               SizedBox(
                 width: double.infinity,
                 height: 46,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.popUntil(
+                    Navigator.pushReplacement(
                       context,
-                      (route) => route.isFirst,
+                      MaterialPageRoute(
+                        builder: (_) => AppointmentDetailsPage(
+                          appointment: appointment,
+                        ),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -130,7 +130,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              // ADD TO CALENDAR
               SizedBox(
                 width: double.infinity,
                 height: 46,
@@ -158,10 +157,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
     );
   }
 
-  // ============================================================
-  // DETAILS CARD
-  // ============================================================
-
   Widget _detailsCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -175,18 +170,13 @@ class AppointmentConfirmedPage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // DOCTOR IMAGE
           ClipOval(
             child: Image.asset(
               'assets/doctor1.png',
               width: 65,
               height: 65,
               fit: BoxFit.cover,
-              errorBuilder: (
-                context,
-                error,
-                stackTrace,
-              ) {
+              errorBuilder: (context, error, stackTrace) {
                 return Container(
                   width: 65,
                   height: 65,
@@ -206,7 +196,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // DOCTOR NAME
           Text(
             'Dr. ${doctor.name}',
             style: const TextStyle(
@@ -218,7 +207,6 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
           const SizedBox(height: 3),
 
-          // SPECIALTY
           Text(
             doctor.specialty,
             style: const TextStyle(
@@ -229,35 +217,30 @@ class AppointmentConfirmedPage extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // DATE
           _row(
             Icons.calendar_today,
             'Date',
             '${date.day}/${date.month}/${date.year}',
           ),
 
-          // TIME
           _row(
             Icons.access_time,
             'Time',
             time.format(context),
           ),
 
-          // CONSULTATION
           _row(
             Icons.medical_services_outlined,
             'Consultation',
             consultationType,
           ),
 
-          // FEE
           _row(
             Icons.currency_rupee,
             'Fee',
             '₹${doctor.consultationFee}',
           ),
 
-          // APPOINTMENT ID
           _row(
             Icons.confirmation_number_outlined,
             'Appointment ID',
@@ -268,24 +251,15 @@ class AppointmentConfirmedPage extends StatelessWidget {
     );
   }
 
-  // ============================================================
-  // APPOINTMENT ID
-  // ============================================================
-
   String _appointmentId() {
-    final timestamp =
-        date.millisecondsSinceEpoch.toString();
+    final id = appointment['id'];
 
-    final shortId = timestamp.length > 7
-        ? timestamp.substring(7)
-        : timestamp;
+    if (id != null) {
+      return 'MED-$id';
+    }
 
-    return 'MED-${doctor.id}-$shortId';
+    return 'MED-PENDING';
   }
-
-  // ============================================================
-  // DETAIL ROW
-  // ============================================================
 
   Widget _row(
     IconData icon,
