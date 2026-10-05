@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'medical_records_scan.dart';
 
+
 class MedicalRecordsPage extends StatefulWidget {
   const MedicalRecordsPage({super.key});
 

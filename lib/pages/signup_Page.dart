@@ -17,6 +17,12 @@ class _SignupPageState extends State<SignupPage> {
   bool agreeTerms = false;
   bool isLoading = false;
 
+  bool otpSent = false;
+  bool emailVerified = false;
+  bool isOtpLoading = false;
+
+  final otpController = TextEditingController();
+
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final emailController = TextEditingController();
@@ -37,13 +43,110 @@ class _SignupPageState extends State<SignupPage> {
     phoneController.dispose();
     emailController.dispose();
     dobController.dispose();
+
     specializationController.dispose();
     qualificationController.dispose();
     experienceController.dispose();
+
     passwordController.dispose();
     confirmPasswordController.dispose();
+
+    otpController.dispose();
+
     super.dispose();
   }
+
+  // =========================================================
+  // SEND OTP
+  // =========================================================
+
+  Future<void> _sendOtp() async {
+    final email = emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showMessage('Please enter your email first');
+      return;
+    }
+
+    setState(() {
+      isOtpLoading = true;
+    });
+
+    try {
+      await AuthService.sendOtp(email);
+
+      if (!mounted) return;
+
+      setState(() {
+        otpSent = true;
+        emailVerified = false;
+        isOtpLoading = false;
+      });
+
+      _showMessage('OTP sent successfully to your email');
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isOtpLoading = false;
+      });
+
+      _showMessage(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  // =========================================================
+  // VERIFY OTP
+  // =========================================================
+
+  Future<void> _verifyOtp() async {
+    final email = emailController.text.trim();
+    final otp = otpController.text.trim();
+
+    if (otp.isEmpty) {
+      _showMessage('Please enter the OTP');
+      return;
+    }
+
+    setState(() {
+      isOtpLoading = true;
+    });
+
+    try {
+      final verified = await AuthService.verifyOtp(
+        email,
+        otp,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        emailVerified = verified;
+        isOtpLoading = false;
+      });
+
+      if (verified) {
+        _showMessage('Email verified successfully');
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isOtpLoading = false;
+        emailVerified = false;
+      });
+
+      _showMessage(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  // =========================================================
+  // CREATE ACCOUNT
+  // =========================================================
 
   Future<void> _createAccount() async {
     final name = nameController.text.trim();
@@ -63,6 +166,11 @@ class _SignupPageState extends State<SignupPage> {
 
     if (email.isEmpty) {
       _showMessage('Please enter your email');
+      return;
+    }
+
+    if (!emailVerified) {
+      _showMessage('Please verify your email with OTP');
       return;
     }
 
@@ -113,8 +221,11 @@ class _SignupPageState extends State<SignupPage> {
     final nameParts = name.split(RegExp(r'\s+'));
 
     final firstName = nameParts.first;
+
     final lastName =
-        nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+        nameParts.length > 1
+            ? nameParts.sublist(1).join(' ')
+            : '';
 
     final username = email.split('@').first;
 
@@ -159,7 +270,8 @@ class _SignupPageState extends State<SignupPage> {
         );
       } else {
         final message =
-            result['message']?.toString() ?? 'Registration failed';
+            result['message']?.toString() ??
+            'Registration failed';
 
         _showMessage(message);
       }
@@ -176,6 +288,10 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
+  // =========================================================
+  // MESSAGE
+  // =========================================================
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -183,6 +299,10 @@ class _SignupPageState extends State<SignupPage> {
       ),
     );
   }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -298,14 +418,172 @@ class _SignupPageState extends State<SignupPage> {
 
                       const SizedBox(height: 15),
 
-                      _inputField(
-                        controller: emailController,
-                        icon: Icons.email_outlined,
-                        hint: 'Email Address',
-                        keyboardType: TextInputType.emailAddress,
+                      // =================================================
+                      // EMAIL + SEND OTP
+                      // =================================================
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _inputField(
+                              controller: emailController,
+                              icon: Icons.email_outlined,
+                              hint: 'Email Address',
+                              keyboardType:
+                                  TextInputType.emailAddress,
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed:
+                                  emailVerified || isOtpLoading
+                                      ? null
+                                      : _sendOtp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    const Color(0xFF287ED8),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding:
+                                    const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                shape:
+                                    RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(9),
+                                ),
+                              ),
+                              child:
+                                  isOtpLoading && !otpSent
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child:
+                                              CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          emailVerified
+                                              ? 'Verified'
+                                              : 'Send OTP',
+                                          style:
+                                              const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight:
+                                                FontWeight.w700,
+                                          ),
+                                        ),
+                            ),
+                          ),
+                        ],
                       ),
 
+                      // =================================================
+                      // OTP FIELD + VERIFY
+                      // =================================================
+
+                      if (otpSent && !emailVerified) ...[
+                        const SizedBox(height: 10),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _inputField(
+                                controller: otpController,
+                                icon: Icons.lock_outline,
+                                hint: 'Enter OTP',
+                                keyboardType:
+                                    TextInputType.number,
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: isOtpLoading
+                                    ? null
+                                    : _verifyOtp,
+                                style:
+                                    ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      const Color(0xFF287ED8),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding:
+                                      const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  shape:
+                                      RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(9),
+                                  ),
+                                ),
+                                child: isOtpLoading
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child:
+                                            CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Verify',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight:
+                                              FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // =================================================
+                      // VERIFIED MESSAGE
+                      // =================================================
+
+                      if (emailVerified) ...[
+                        const SizedBox(height: 6),
+
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: Colors.green,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              'Email verified successfully',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
                       const SizedBox(height: 15),
+
+                      // =================================================
+                      // PATIENT FIELDS
+                      // =================================================
 
                       if (selectedRole == 0) ...[
                         _inputField(
@@ -323,17 +601,24 @@ class _SignupPageState extends State<SignupPage> {
                         const SizedBox(height: 15),
                       ],
 
+                      // =================================================
+                      // DOCTOR FIELDS
+                      // =================================================
+
                       if (selectedRole == 1) ...[
                         _inputField(
-                          controller: specializationController,
-                          icon: Icons.medical_services_outlined,
+                          controller:
+                              specializationController,
+                          icon:
+                              Icons.medical_services_outlined,
                           hint: 'Specialization',
                         ),
 
                         const SizedBox(height: 15),
 
                         _inputField(
-                          controller: qualificationController,
+                          controller:
+                              qualificationController,
                           icon: Icons.school_outlined,
                           hint: 'Qualification',
                         ),
@@ -344,7 +629,8 @@ class _SignupPageState extends State<SignupPage> {
                           controller: experienceController,
                           icon: Icons.work_history_outlined,
                           hint: 'Experience (Years)',
-                          keyboardType: TextInputType.number,
+                          keyboardType:
+                              TextInputType.number,
                         ),
 
                         const SizedBox(height: 15),
@@ -353,6 +639,10 @@ class _SignupPageState extends State<SignupPage> {
                       if (selectedRole == 2) ...[
                         const SizedBox(height: 5),
                       ],
+
+                      // =================================================
+                      // PASSWORD
+                      // =================================================
 
                       _passwordField(
                         controller: passwordController,
@@ -368,9 +658,11 @@ class _SignupPageState extends State<SignupPage> {
                       const SizedBox(height: 15),
 
                       _passwordField(
-                        controller: confirmPasswordController,
+                        controller:
+                            confirmPasswordController,
                         hint: 'Confirm Password',
-                        showPassword: showConfirmPassword,
+                        showPassword:
+                            showConfirmPassword,
                         onToggle: () {
                           setState(() {
                             showConfirmPassword =
@@ -381,8 +673,13 @@ class _SignupPageState extends State<SignupPage> {
 
                       const SizedBox(height: 15),
 
+                      // =================================================
+                      // TERMS
+                      // =================================================
+
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
                           SizedBox(
                             width: 18,
@@ -391,12 +688,15 @@ class _SignupPageState extends State<SignupPage> {
                               value: agreeTerms,
                               onChanged: (value) {
                                 setState(() {
-                                  agreeTerms = value ?? false;
+                                  agreeTerms =
+                                      value ?? false;
                                 });
                               },
-                              activeColor: const Color(0xFF2589E8),
+                              activeColor:
+                                  const Color(0xFF2589E8),
                               materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                                  MaterialTapTargetSize
+                                      .shrinkWrap,
                             ),
                           ),
 
@@ -410,30 +710,37 @@ class _SignupPageState extends State<SignupPage> {
                                     text: 'I agree to the ',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Color(0xFF6685A0),
+                                      color:
+                                          Color(0xFF6685A0),
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Terms & Conditions',
+                                    text:
+                                        'Terms & Conditions',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Color(0xFF2589E8),
-                                      fontWeight: FontWeight.w500,
+                                      color:
+                                          Color(0xFF2589E8),
+                                      fontWeight:
+                                          FontWeight.w500,
                                     ),
                                   ),
                                   TextSpan(
                                     text: '\nand ',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Color(0xFF6685A0),
+                                      color:
+                                          Color(0xFF6685A0),
                                     ),
                                   ),
                                   TextSpan(
                                     text: 'Privacy Policy',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Color(0xFF2589E8),
-                                      fontWeight: FontWeight.w500,
+                                      color:
+                                          Color(0xFF2589E8),
+                                      fontWeight:
+                                          FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -445,6 +752,10 @@ class _SignupPageState extends State<SignupPage> {
 
                       const SizedBox(height: 15),
 
+                      // =================================================
+                      // CREATE ACCOUNT BUTTON
+                      // =================================================
+
                       SizedBox(
                         width: double.infinity,
                         height: 40,
@@ -453,10 +764,12 @@ class _SignupPageState extends State<SignupPage> {
                               ? null
                               : _createAccount,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF287ED8),
+                            backgroundColor:
+                                const Color(0xFF287ED8),
                             foregroundColor: Colors.white,
                             elevation: 0,
-                            shape: RoundedRectangleBorder(
+                            shape:
+                                RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(20),
                             ),
@@ -475,7 +788,8 @@ class _SignupPageState extends State<SignupPage> {
                                   'Create Account',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight:
+                                        FontWeight.w800,
                                   ),
                                 ),
                         ),
@@ -492,6 +806,10 @@ class _SignupPageState extends State<SignupPage> {
       ),
     );
   }
+
+  // =========================================================
+  // ROLE SELECTOR
+  // =========================================================
 
   Widget _roleSelector() {
     const roles = [
@@ -521,12 +839,14 @@ class _SignupPageState extends State<SignupPage> {
                   });
                 },
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration:
+                      const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
                     color: selected
                         ? const Color(0xFF287ED8)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius:
+                        BorderRadius.circular(20),
                   ),
                   child: Center(
                     child: Text(
@@ -551,11 +871,16 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
+  // =========================================================
+  // INPUT FIELD
+  // =========================================================
+
   Widget _inputField({
     required TextEditingController controller,
     required IconData icon,
     required String hint,
-    TextInputType keyboardType = TextInputType.text,
+    TextInputType keyboardType =
+        TextInputType.text,
     bool readOnly = false,
     VoidCallback? onTap,
   }) {
@@ -583,24 +908,28 @@ class _SignupPageState extends State<SignupPage> {
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding:
+              const EdgeInsets.symmetric(
             vertical: 0,
             horizontal: 14,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFF2589E8),
               width: 1.2,
@@ -610,6 +939,10 @@ class _SignupPageState extends State<SignupPage> {
       ),
     );
   }
+
+  // =========================================================
+  // PASSWORD FIELD
+  // =========================================================
 
   Widget _passwordField({
     required TextEditingController controller,
@@ -649,24 +982,28 @@ class _SignupPageState extends State<SignupPage> {
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding:
+              const EdgeInsets.symmetric(
             vertical: 0,
             horizontal: 14,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFF2589E8),
               width: 1.2,
@@ -677,42 +1014,50 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
+  // =========================================================
+  // GENDER
+  // =========================================================
+
   Widget _genderField() {
     return SizedBox(
-      height: 50,
+      height: 40,
       child: DropdownButtonFormField<String>(
         value: selectedGender,
         decoration: InputDecoration(
           prefixIcon: const Icon(
             Icons.person_outline,
-            size: 19,
+            size: 15,
             color: Color(0xFF6685A0),
           ),
           hintText: 'Gender',
           hintStyle: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             color: Color(0xFF91A8BC),
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding:
+              const EdgeInsets.symmetric(
             vertical: 0,
-            horizontal: 12,
+            horizontal: 10,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFFD9EAF5),
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
+            borderRadius:
+                BorderRadius.circular(9),
             borderSide: const BorderSide(
               color: Color(0xFF2589E8),
             ),
@@ -745,6 +1090,10 @@ class _SignupPageState extends State<SignupPage> {
       ),
     );
   }
+
+  // =========================================================
+  // DATE PICKER
+  // =========================================================
 
   Future<void> _selectDate() async {
     final date = await showDatePicker(
